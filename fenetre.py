@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import messagebox
 import nmap
 import netifaces
 from scapy.all import *
@@ -17,17 +16,20 @@ def get_interface_info():
             address_info = addresses[netifaces.AF_INET][0]
             ip_address = address_info['addr']
             netmask = address_info['netmask']
-            info += [[interface , ip_address , netmask]]
+            info += [[ip_address , netmask]]
     return info
 
-info = get_interface_info
 def scan():
+    index = liste_if.curselection()
+    b = liste_if.get(index[0])
+    a = decimal_to_cidr(b[0], b[1])
     liste = []
     nm = nmap.PortScanner()
-    nm.scan(hosts='192.168.1.62/24', arguments='-sP')
+    nm.scan(hosts=a, arguments='-sP')
     for host in nm.all_hosts():
         liste.append(str(host)  +' '+  str(nm[host].hostname()))
-    return liste
+    for ip in liste:
+        liste_ip_1.insert(tk.END, ip)
 
 def get_mac_address():
     my_macs = [get_if_hwaddr(i) for i in get_if_list()]
@@ -35,7 +37,21 @@ def get_mac_address():
         if(mac != "00:00:00:00:00:00"):
             return mac
 
+#    ip = liste_if.get(liste_if.curselection())
+    #liste_ip_1.insert(tk.END, ip[0])
 
+def decimal_to_cidr(ip, masque):
+    # Convertir l'IP et le masque en listes d'entiers
+    ip_octets = [int(octet) for octet in ip.split('.')]
+    masque_octets = [int(octet) for octet in masque.split('.')]
+
+    # Calculer le nombre de bits à 1 dans le masque de sous-réseau
+    bits_a_un = sum([bin(octet).count('1') for octet in masque_octets])
+
+    # Construire la notation CIDR
+    cidr = f"{ip}/{bits_a_un}"
+
+    return cidr
 def attack():
     my_mac = get_mac_address()
     packet = Ether()/ARP(op="who-has", hwsrc=my_mac, psrc=ip_1.get(), pdst=ip_2.get())
@@ -77,5 +93,8 @@ liste_if.grid(row=3, column=0, padx=10, pady=5)
 
 button_scan = tk.Button(fenetre, text="Lancer le scan", command=scan)
 button_scan.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
+
+
+
 
 fenetre.mainloop()
