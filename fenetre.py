@@ -6,7 +6,7 @@ import time
 import threading
 from scapy.all import sniff
 from tkinter import ttk
-
+import socket
 
 global liste_pas
 
@@ -25,14 +25,18 @@ def packet_handler(packet):
     if packet[ARP].op in [1, 2]:  # ARP request or reply
         src_ip = packet[ARP].psrc
         src_mac = packet[ARP].hwsrc
-        if (src_ip, src_mac) not in liste_pas:
-            print(f"IP: {src_ip}, MAC: {src_mac}")
+
+        try:
+            hostname = socket.getfqdn(src_ip)
+        except socket.herror:
+            hostname = "Unknown"
+        
+        if ((src_ip, src_mac)) not in liste_pas:
             liste_pas.append((src_ip, src_mac))
-            print(liste_pas)
             if packet[ARP].op == 1:
-                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
+                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}, HOST: {hostname}")
             elif packet[ARP].op == 2:
-                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
+                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}, HOST: {hostname}")
 
 
 def stop_passive():
