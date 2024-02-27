@@ -22,15 +22,17 @@ is_sniffing=False
 # Define a function to process captured packets
 def packet_handler(packet):
     global liste_pas
-    if packet[ARP].op == 1:  # ARP request
+    if packet[ARP].op in [1, 2]:  # ARP request or reply
         src_ip = packet[ARP].psrc
         src_mac = packet[ARP].hwsrc
-        if (src_ip, src_mac) not in liste:
-            liste_pas.append((src_ip, src_mac))
+        if (src_ip, src_mac) not in liste_pas:
             print(f"IP: {src_ip}, MAC: {src_mac}")
-            liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
- 
-# Sniff only TCP packets on the default network interface
+            liste_pas.append((src_ip, src_mac))
+            print(liste_pas)
+            if packet[ARP].op == 1:
+                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
+            elif packet[ARP].op == 2:
+                liste_ip_1.insert(tk.END, f"IP: {src_ip}, MAC: {src_mac}")
 
 
 def stop_passive():
@@ -72,7 +74,6 @@ def scan():
     nm.scan(hosts=a, arguments='-sP')
     for host in nm.all_hosts():
         liste.append(str(host)  +' '+  str(nm[host].hostname()))
-    progressbar.step(20)
 
     for ip in liste:
         liste_ip_1.insert(tk.END, ip)
